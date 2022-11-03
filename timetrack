@@ -1,0 +1,72 @@
+/**
+ * Title: Record Timer
+ * Version: 1.0
+ * License: MIT
+ * Author: Justin Barrett
+ * Sites:
+ * http://www.justinsbarrett.com - Main website
+ * https://www.youtube.com/channel/UCElPqW_1xVXToQPB3Y_WD3Q - All About That Base (YouTube channel)
+ * 
+ * Description: An alternative to Airtable's built-in timer block. With this script,
+ * you can start and stop virtual timers directly on individual records. Any record's timer
+ * may be started and stopped multiple times, allowing for easy tracking of staggered
+ * timing sessions.
+ * 
+ * Requirements: Before using this script, you will need to add the following fields:
+ * - A button field to start/stop the timer. Must be set to trigger this script.    - REQUIRED
+ * - A single line text field to store the timer data (may be hidden)               - REQUIRED
+ * - A duration field to store the total tracked time                               - REQUIRED
+ * 
+ * Instructions: Edit the configuration section below based on the design of your base
+ * and your preferences for how the timer operates.
+ * 
+ * Configuration Options:
+ * dataField            The field where the script will store internal timer data. Clear
+ *                      this field to "reset" the timer for the record
+ * durationField        The field where the script will store the total tracked time
+ * clearWhileTiming     Clear the duration field while timing? (true/false)
+ * 
+ * Version History:
+ * 1.0  Initial release
+ * 
+ */
+
+// ------------------------ START CONFIGURATION ------------------------//
+
+let dataField = "Timer Data";
+let durationField = "Duration";
+let clearWhileTiming = true;
+
+// ------------------------- END CONFIGURATION -------------------------//
+
+// Get the record
+let tableId = cursor.activeTableId;
+let table = base.getTable(tableId);
+let record = await input.recordAsync("Choose a record", table);
+let timerData = record.getCellValue(dataField);
+let values = timerData === null ? [] : JSON.parse(timerData);
+let toStore = {};
+
+// Get the current time and store its value in the array
+let currentTime = new Date();
+values.push(currentTime.getTime());
+toStore [[dataField]] = JSON.stringify(values);
+
+// If we have an even number, find the difference between the value pairs,
+// then round to the nearest second
+let duration = 0;
+let index = 0;
+while (values.length % 2 == 0 && index<values.length) {
+    duration += values[index + 1] - values[index];
+    index += 2;
+}
+duration /= 1000;
+
+// If we have a duration, add it to the stored data
+if (duration)
+    toStore[[durationField]] = duration;
+else if (clearWhileTiming)
+    toStore[[durationField]] = null;
+
+// Store the results back in the record
+table.updateRecordAsync(record, toStore);
